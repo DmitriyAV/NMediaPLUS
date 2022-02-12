@@ -40,7 +40,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 // Данные успешно получены
                 val posts = repository.getAll()
-                FeedModel(posts = posts, empty = posts.isEmpty())
+                FeedModel(posts = posts, empty = posts.isEmpty(), refreshing = false)
             } catch (e: IOException) {
                 // Получена ошибка
                 FeedModel(error = true)
