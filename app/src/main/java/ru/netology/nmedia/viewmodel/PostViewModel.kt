@@ -34,7 +34,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadPosts() {
         _data.postValue(FeedModel(loading = true))
-        repository.getPostAsync(object : PostRepository.GetAllCallback {
+        repository.getPostAsync(object : PostRepository.GetAsyncCallback<List<Post>> {
 
             override fun onError(exception: Exception) {
                 _data.postValue(FeedModel(error = true))
@@ -76,14 +76,14 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun likeById(id: Long) {
-        repository.likeById(id, object : PostRepository.GetLikeCallback {
+        repository.likeById(id, object : PostRepository.GetAsyncCallback<Post> {
             override fun onError(exception: Exception) {
                 _data.postValue(FeedModel(error = true))
             }
 
-            override fun onSuccess(post: Post) {
+            override fun onSuccess(posts: Post) {
 
-                val likedPost = _data.value?.posts.orEmpty().map { if (it.id == id) post else it }
+                val likedPost = _data.value?.posts.orEmpty().map { if (it.id == id) posts else it }
                 _data.postValue(FeedModel(posts = likedPost, empty = likedPost.isEmpty()))
             }
         })
@@ -91,14 +91,14 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dislikeById(id: Long) {
-        repository.likeById(id, object : PostRepository.GetLikeCallback {
+        repository.likeById(id, object : PostRepository.GetAsyncCallback<Post> {
             override fun onError(exception: Exception) {
                 _data.postValue(FeedModel(error = true))
             }
 
-            override fun onSuccess(post: Post) {
+            override fun onSuccess(posts: Post) {
 
-                val likedPost = _data.value?.posts.orEmpty().map { if (it.id == id) post else it }
+                val likedPost = _data.value?.posts.orEmpty().map { if (it.id == id) posts else it }
                 _data.postValue(FeedModel(posts = likedPost, empty = likedPost.isEmpty()))
             }
         })
@@ -108,10 +108,10 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     fun removeById(id: Long) {
         repository.removeById(id, object : PostRepository.GetDeletCallback {
             override fun onError(exception: Exception) {
-               // val old = _data.value?.posts.orEmpty()
+                val old = _data.value?.posts.orEmpty()
 
                 _data.postValue(FeedModel(error = true))
-                //_data.postValue(_data.value?.copy(posts = old))
+                _data.postValue(_data.value?.copy(posts = old))
 
             }
 

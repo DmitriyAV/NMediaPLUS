@@ -35,7 +35,7 @@ class PostRepositoryImpl : PostRepository {
             }
     }
 
-    override fun likeById(id: Long, callback: PostRepository.GetLikeCallback) {
+    override fun likeById(id: Long, callback: PostRepository.GetAsyncCallback<Post>) {
         val request: Request = Request.Builder()
             .post("".toRequestBody())
             .url("${BASE_URL}/api/slow/posts/$/likes")
@@ -48,15 +48,20 @@ class PostRepositoryImpl : PostRepository {
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    val post = response.body?.string() ?: throw RuntimeException("body is null")
-                    callback.onSuccess(gson.fromJson(post, Post::class.java))
+                    if (!response.isSuccessful) {
+                        throw java.lang.RuntimeException("Wrong server code")
+                    } else {
+                        val post = response.body?.string() ?: throw RuntimeException("body is null")
+                        callback.onSuccess(gson.fromJson(post, Post::class.java))
+                    }
+
                 }
 
             })
 
     }
 
-    override fun dislikeById(id: Long, callback: PostRepository.GetLikeCallback) {
+    override fun dislikeById(id: Long, callback: PostRepository.GetAsyncCallback<Post>) {
         val request: Request = Request.Builder()
             .delete()
             .url("${BASE_URL}/api/slow/posts/$id/likes")
@@ -69,8 +74,13 @@ class PostRepositoryImpl : PostRepository {
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    val post = response.body?.string() ?: throw RuntimeException("body is null")
-                    callback.onSuccess(gson.fromJson(post, Post::class.java))
+                    if (!response.isSuccessful) {
+                        throw java.lang.RuntimeException("Wrong server code")
+                    } else {
+                        val post = response.body?.string() ?: throw RuntimeException("body is null")
+                        callback.onSuccess(gson.fromJson(post, Post::class.java))
+                    }
+
                 }
 
             })
@@ -91,7 +101,9 @@ class PostRepositoryImpl : PostRepository {
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    callBack.onSuccess()
+                    if (!response.isSuccessful) {
+                        throw java.lang.RuntimeException("Wrong server code")
+                    } else callBack.onSuccess()
                 }
 
             })
@@ -116,7 +128,7 @@ class PostRepositoryImpl : PostRepository {
             })
     }
 
-    override fun getPostAsync(callback: PostRepository.GetAllCallback) {
+    override fun getPostAsync(callback: PostRepository.GetAsyncCallback<List<Post>>) {
         val request: Request = Request.Builder()
             .url("${BASE_URL}/api/slow/posts")
             .build()
