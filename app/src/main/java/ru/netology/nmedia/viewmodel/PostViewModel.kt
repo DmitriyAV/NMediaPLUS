@@ -111,7 +111,7 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dislikeById(id: Long) {
-        repository.likeById(id, object : PostRepository.GetAsyncCallback<Post> {
+        repository.dislikeById(id, object : PostRepository.GetAsyncCallback<Post> {
             override fun onError(exception: Exception) {
                 actionId = id
                 action = Action.DISLIKE_ERROR
