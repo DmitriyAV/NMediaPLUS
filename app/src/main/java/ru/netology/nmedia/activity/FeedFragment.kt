@@ -64,11 +64,13 @@ class FeedFragment : Fragment() {
             binding.errorGroup.isVisible = state.error
             binding.emptyText.isVisible = state.empty
             binding.swiperefresh.isRefreshing = state.refreshing
+            binding.retryButton.isVisible = state.serverError
+            binding.retryButton.setOnClickListener {
+                viewModel.tryAgane()
+            }
+
         }
 
-        binding.retryButton.setOnClickListener {
-            viewModel.loadPosts()
-        }
 
         binding.fab.setOnClickListener {
             findNavController().navigate(R.id.action_feedFragment_to_newPostFragment)
@@ -78,7 +80,6 @@ class FeedFragment : Fragment() {
             FeedModel(refreshing = true)
             viewModel.loadPosts()
         }
-
         return binding.root
     }
 }
