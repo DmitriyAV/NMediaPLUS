@@ -15,6 +15,7 @@ import ru.netology.nmedia.adapter.PostsAdapter
 import ru.netology.nmedia.databinding.FragmentFeedBinding
 import ru.netology.nmedia.dto.Post
 import ru.netology.nmedia.model.FeedModel
+import ru.netology.nmedia.model.FeedModelState
 import ru.netology.nmedia.viewmodel.PostViewModel
 
 class FeedFragment : Fragment() {
@@ -35,7 +36,7 @@ class FeedFragment : Fragment() {
 
             override fun onLike(post: Post) {
                 when (post.likedByMe) {
-                    true -> viewModel.dislikeById(post.id)
+                    true -> viewModel.disLikeById(post.id)
                     false -> viewModel.likeById(post.id)
                 }
             }
@@ -58,27 +59,38 @@ class FeedFragment : Fragment() {
         })
 
         binding.list.adapter = adapter
-        viewModel.data.observe(viewLifecycleOwner) { state ->
-            adapter.submitList(state.posts)
-            binding.progress.isVisible = state.loading
-            binding.errorGroup.isVisible = state.error
-            binding.emptyText.isVisible = state.empty
-            binding.swiperefresh.isRefreshing = state.refreshing
-            binding.retryButton.isVisible = state.serverError
-            binding.retryButton.setOnClickListener {
-                viewModel.tryAgane()
-            }
 
+        viewModel.dataState.observe(viewLifecycleOwner) { state ->
+            with(binding) {
+                progress.isVisible = state.loading
+                swiperefresh.isRefreshing = state.refreshing
+                if (state.error) {
+                    errorGroup.isVisible = state.error
+                    errorGroup.setOnClickListener {
+                        viewModel.tryAgain()
+                       errorGroup.visibility = View.GONE
+                    }
+                }
+            }
         }
 
+        viewModel.data.observe(viewLifecycleOwner) { state ->
+            adapter.submitList(state.posts)
+            with(binding) {
+                emptyText.isVisible = state.empty
+            }
+        }
+
+        binding.retryButton.setOnClickListener {
+            viewModel.loadPosts()
+        }
 
         binding.fab.setOnClickListener {
             findNavController().navigate(R.id.action_feedFragment_to_newPostFragment)
         }
 
         binding.swiperefresh.setOnRefreshListener {
-            FeedModel(refreshing = true)
-            viewModel.loadPosts()
+            viewModel.refreshPosts()
         }
         return binding.root
     }
