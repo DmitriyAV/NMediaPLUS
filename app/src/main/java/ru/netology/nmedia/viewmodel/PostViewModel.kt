@@ -2,7 +2,8 @@ package ru.netology.nmedia.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.*
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import ru.netology.nmedia.db.AppDb
 import ru.netology.nmedia.dto.Post
 import ru.netology.nmedia.model.FeedModel
@@ -11,13 +12,15 @@ import ru.netology.nmedia.repository.*
 import ru.netology.nmedia.util.SingleLiveEvent
 import java.lang.Exception
 
+
 private val empty = Post(
     id = 0,
     content = "",
     author = "",
     likedByMe = false,
     likes = 0,
-    published = ""
+    published = "",
+    show = false
 )
 
 class PostViewModel(application: Application) : AndroidViewModel(application) {
@@ -25,7 +28,18 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: PostRepository =
         PostRepositoryImpl(AppDb.getInstance(context = application).postDao())
 
-    val data: LiveData<FeedModel> = repository.data.map(::FeedModel)
+    val data: LiveData<FeedModel> = repository.data
+        .map(::FeedModel)
+        .asLiveData(Dispatchers.Default)
+
+    val newerPost: LiveData<Int> = data
+        .switchMap {
+            repository.getNewerCount(it.posts.firstOrNull()?.id ?: 0L )
+                .catch { e -> e.printStackTrace() }
+                .asLiveData(Dispatchers.Default)
+        }
+        .distinctUntilChanged()
+
 
     private val _dataState = MutableLiveData<FeedModelState>()
     val dataState: LiveData<FeedModelState>
@@ -175,9 +189,33 @@ class PostViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getUnreadPosts() =
+        viewModelScope.launch {
+            try {
+                _dataState.value = FeedModelState(loading = true)
+                repository.getUnreadPosts()
+                _dataState.value = FeedModelState()
+            } catch (e: Exception) {
+                _dataState.value = FeedModelState(error = true)
+            }
+        }
+
+    fun makePostReaded() =
+        viewModelScope.launch {
+            try {
+                _dataState.value = FeedModelState(loading = true)
+                repository.makePostReaded()
+                _dataState.value = FeedModelState()
+            } catch (e: Exception) {
+                _dataState.value = FeedModelState(error = true)
+            }
+        }
+
+
     fun retryLoadPosts() {
         loadPosts()
     }
+
 
 }
 

@@ -22,4 +22,6 @@
     <string name="channel_remote_description">Notifications from remote server</string>
     <string name="no_network">No web</string>
     <string name="unknown_exception">Somethink whent wrong:(</string>
+    <string name="extended_fab_content_desc">New posts</string>
+    <string name="extended_fab_label">New posts</string>
 </resources>

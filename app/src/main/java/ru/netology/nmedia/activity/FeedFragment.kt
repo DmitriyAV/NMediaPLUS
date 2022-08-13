@@ -81,6 +81,19 @@ class FeedFragment : Fragment() {
             }
         }
 
+        viewModel.newerPost.observe(viewLifecycleOwner) { state ->
+            when (state) {
+                1 -> binding.newPosts.visibility = View.VISIBLE
+                else -> return@observe
+            }
+        }
+
+        binding.newPosts.setOnClickListener {
+            binding.newPosts.visibility = View.GONE
+            viewModel.getUnreadPosts()
+            viewModel.makePostReaded()
+        }
+
         binding.retryButton.setOnClickListener {
             viewModel.loadPosts()
         }

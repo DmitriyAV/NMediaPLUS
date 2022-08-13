@@ -10,7 +10,7 @@ import kotlin.math.roundToInt
 object PostService {
 
     val post = Post (id = 1, author = " ", content = " ", likedByMe = false,
-       published = " ")
+       published = " ", show = false)
 
     fun countPresents(counter: Long): String {
         return when(counter) {
