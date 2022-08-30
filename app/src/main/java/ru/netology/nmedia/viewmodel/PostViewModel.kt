@@ -2,12 +2,16 @@ package ru.netology.nmedia.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import ru.netology.nmedia.db.AppDb
 import ru.netology.nmedia.dto.Post
 import ru.netology.nmedia.model.FeedModel
+import ru.netology.nmedia.model.FeedModelState
 import ru.netology.nmedia.repository.*
 import ru.netology.nmedia.util.SingleLiveEvent
-import java.io.IOException
-import kotlin.concurrent.thread
+import java.lang.Exception
+
 
 private val empty = Post(
     id = 0,
@@ -15,91 +19,210 @@ private val empty = Post(
     author = "",
     likedByMe = false,
     likes = 0,
-    published = ""
+    published = "",
+    show = false
 )
 
 class PostViewModel(application: Application) : AndroidViewModel(application) {
-    // упрощённый вариант
-    private val repository: PostRepository = PostRepositoryImpl()
-    private val _data = MutableLiveData(FeedModel())
-    val data: LiveData<FeedModel>
-        get() = _data
-    private val edited = MutableLiveData(empty)
+
+    private val repository: PostRepository =
+        PostRepositoryImpl(AppDb.getInstance(context = application).postDao())
+
+    val data: LiveData<FeedModel> = repository.data
+        .map(::FeedModel)
+        .asLiveData(Dispatchers.Default)
+
+    val newerPost: LiveData<Int> = data
+        .switchMap {
+            repository.getNewerCount(it.posts.firstOrNull()?.id ?: 0L )
+                .catch { e -> e.printStackTrace() }
+                .asLiveData(Dispatchers.Default)
+        }
+        .distinctUntilChanged()
+
+
+    private val _dataState = MutableLiveData<FeedModelState>()
+    val dataState: LiveData<FeedModelState>
+        get() = _dataState
+
+    val edited = MutableLiveData(empty)
+
     private val _postCreated = SingleLiveEvent<Unit>()
     val postCreated: LiveData<Unit>
         get() = _postCreated
+
+    var currentId: Long? = null
+
+    var lastAction: ActionType? = null
 
     init {
         loadPosts()
     }
 
-    fun loadPosts() {
-        thread {
-            // Начинаем загрузку
-            _data.postValue(FeedModel(loading = true))
-            try {
-                // Данные успешно получены
-                val posts = repository.getAll()
-                FeedModel(posts = posts, empty = posts.isEmpty(), refreshing = false)
-            } catch (e: IOException) {
-                // Получена ошибка
-                FeedModel(error = true)
-            }.also(_data::postValue)
+    fun tryAgain() {
+        when (lastAction) {
+            ActionType.LIKEBYID -> retryLikeById()
+            ActionType.DISLIKEBYID -> retryDisLikeById()
+            ActionType.SAVE -> retrySave()
+            ActionType.LOADPOSTS -> retryLoadPosts()
+            ActionType.REMOVEBYID -> retryRemoveById()
+            else -> loadPosts()
         }
     }
 
     fun save() {
+        lastAction = ActionType.SAVE
         edited.value?.let {
-            thread {
-                repository.save(it)
-                _postCreated.postValue(Unit)
+            _postCreated.value = Unit
+            viewModelScope.launch {
+                try {
+                    repository.save(it)
+                    _dataState.value = FeedModelState()
+                } catch (e: Exception) {
+                    _dataState.value = FeedModelState(error = true)
+                }
             }
         }
         edited.value = empty
+    }
+
+    fun retrySave() {
+        save()
+    }
+
+    fun likeById(id: Long) {
+        viewModelScope.launch {
+            currentId = id
+            lastAction = ActionType.LIKEBYID
+            try {
+                repository.likeById(id)
+                _dataState.value = FeedModelState()
+            } catch (e: Exception) {
+                _dataState.value = FeedModelState(error = true)
+            }
+        }
+    }
+
+    fun retryLikeById() {
+        currentId?.let {
+            likeById(it)
+        }
+    }
+
+    fun disLikeById(id: Long) {
+        viewModelScope.launch {
+            currentId = id
+            lastAction = ActionType.DISLIKEBYID
+            try {
+                repository.disLikeById(id)
+                _dataState.value = FeedModelState()
+            } catch (e: Exception) {
+                _dataState.value = FeedModelState(error = true)
+            }
+        }
+    }
+
+    fun retryDisLikeById() {
+        currentId?.let {
+            disLikeById(it)
+        }
+    }
+
+    fun shareById(id: Long) {
+        repository.shareById(id)
+    }
+
+    fun removeById(id: Long) {
+        viewModelScope.launch {
+            currentId = id
+            lastAction = ActionType.REMOVEBYID
+            try {
+                _dataState.value = FeedModelState()
+                repository.removeById(id)
+                _dataState.value = FeedModelState()
+            } catch (e: Exception) {
+                _dataState.value = FeedModelState(error = true)
+            }
+        }
+    }
+
+    fun retryRemoveById() {
+        currentId?.let {
+            removeById(it)
+        }
     }
 
     fun edit(post: Post) {
         edited.value = post
     }
 
-    fun changeContent(content: String) {
-        val text = content.trim()
+    fun editContent(text: String) {
+        val formatted = text.trim()
         if (edited.value?.content == text) {
             return
         }
-        edited.value = edited.value?.copy(content = text)
+        edited.value = edited.value?.copy(content = formatted)
     }
 
-    fun likeById(id: Long) {
-        thread {
-            val update = repository.likeById(id)
-            val post = _data.value?.posts.orEmpty().map { if (it.id == id) update else it }
-            _data.postValue(FeedModel(posts = post, empty = post.isEmpty()))
+    fun video() {
+        repository.video()
+    }
+
+    fun loadPosts() = viewModelScope.launch {
+        lastAction = ActionType.LOADPOSTS
+        try {
+            _dataState.value = FeedModelState(loading = true)
+            repository.getAll()
+            _dataState.value = FeedModelState()
+        } catch (e: Exception) {
+            _dataState.value = FeedModelState(error = true)
         }
     }
 
-    fun dislikeById(id: Long) {
-        thread {
-            val update = repository.dislikeById(id)
-            val post = _data.value?.posts.orEmpty().map { if (it.id == id) update else it }
-            _data.postValue(FeedModel(posts = post, empty = post.isEmpty()))
+    fun refreshPosts() = viewModelScope.launch {
+        try {
+            _dataState.value = FeedModelState(refreshing = true)
+            repository.getAll()
+            _dataState.value = FeedModelState()
+        } catch (e: Exception) {
+            _dataState.value = FeedModelState(error = true)
         }
     }
 
-    fun removeById(id: Long) {
-        thread {
-            // Оптимистичная модель
-            val old = _data.value?.posts.orEmpty()
-            _data.postValue(
-                _data.value?.copy(posts = _data.value?.posts.orEmpty()
-                    .filter { it.id != id }
-                )
-            )
+    fun getUnreadPosts() =
+        viewModelScope.launch {
             try {
-                repository.removeById(id)
-            } catch (e: IOException) {
-                _data.postValue(_data.value?.copy(posts = old))
+                _dataState.value = FeedModelState(loading = true)
+                repository.getUnreadPosts()
+                _dataState.value = FeedModelState()
+            } catch (e: Exception) {
+                _dataState.value = FeedModelState(error = true)
             }
         }
+
+    fun makePostReaded() =
+        viewModelScope.launch {
+            try {
+                _dataState.value = FeedModelState(loading = true)
+                repository.makePostReaded()
+                _dataState.value = FeedModelState()
+            } catch (e: Exception) {
+                _dataState.value = FeedModelState(error = true)
+            }
+        }
+
+
+    fun retryLoadPosts() {
+        loadPosts()
     }
+
+
+}
+
+enum class ActionType {
+    LIKEBYID,
+    DISLIKEBYID,
+    SAVE,
+    REMOVEBYID,
+    LOADPOSTS
 }

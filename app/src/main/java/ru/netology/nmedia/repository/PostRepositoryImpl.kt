@@ -1,83 +1,139 @@
 package ru.netology.nmedia.repository
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
 import ru.netology.nmedia.dto.Post
-import java.util.concurrent.TimeUnit
+import ru.netology.nmedia.api.PostApi
+import ru.netology.nmedia.dao.PostDao
+import ru.netology.nmedia.entity.PostEntity
+import ru.netology.nmedia.entity.toDto
+import ru.netology.nmedia.entity.toEntity
+import ru.netology.nmedia.exception.ApiException
+import ru.netology.nmedia.exception.NetWorkException
+import ru.netology.nmedia.exception.UnknownException
+import java.io.IOException
+import java.lang.Exception
+import java.util.concurrent.CancellationException
 
 
-class PostRepositoryImpl : PostRepository {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .build()
-    private val gson = Gson()
-    private val typeToken = object : TypeToken<List<Post>>() {}
+class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
 
-    companion object {
-        private const val BASE_URL = "http://10.0.2.2:9999"
-        private val jsonType = "application/json".toMediaType()
-    }
+    override val data = dao.getAll()
+        .map(List<PostEntity>::toDto)
+        .flowOn(Dispatchers.Default)
 
-    override fun getAll(): List<Post> {
-        val request: Request = Request.Builder()
-            .url("${BASE_URL}/api/slow/posts")
-            .build()
-
-        return client.newCall(request)
-            .execute()
-            .let { it.body?.string() ?: throw RuntimeException("body is null") }
-            .let {
-                gson.fromJson(it, typeToken.type)
+    override fun getNewerCount(id: Long): Flow<Int> = flow {
+        while (true) {
+            try {
+                delay(10_000)
+                val response = PostApi.retrofitService.getNewer(id)
+                if (!response.isSuccessful) {
+                    throw ApiException(response.code(), response.message())
+                }
+                val body =
+                    response.body() ?: throw ApiException(response.code(), response.message())
+                dao.insert(body.map { it.copy(show = false) }.toEntity())
+                emit(body.size)
+            } catch (e: IOException) {
+                throw NetWorkException
             }
+            catch (e: CancellationException) {
+                throw e
+            }
+            catch (e: Exception) {
+                throw UnknownException
+            }
+        }
+    }
+        .flowOn(Dispatchers.Default)
+
+    override suspend fun getUnreadPosts() {
+        dao.getUnreadPosts()
     }
 
-    override fun likeById(id: Long): Post {
-        val request: Request = Request.Builder()
-            .post("".toRequestBody())
-            .url("${BASE_URL}/api/slow/posts/$id/likes")
-            .build()
-
-        return client.newCall(request)
-            .execute()
-            .let { it.body?.string() ?: throw RuntimeException("body is null") }
-            .let { gson.fromJson(it, Post::class.java) }
+    override suspend fun makePostReaded() {
+        dao.makePostReaded()
     }
 
-    override fun dislikeById(id: Long): Post {
-        val request: Request = Request.Builder()
-            .delete()
-            .url("${BASE_URL}/api/slow/posts/$id/likes")
-            .build()
-
-        return client.newCall(request)
-            .execute()
-            .let { it.body?.string() ?: throw RuntimeException("body is null") }
-            .let { gson.fromJson(it, Post::class.java) }
+    override suspend fun getAll() {
+        try {
+            val response = PostApi.retrofitService.getAll()
+            if (!response.isSuccessful) {
+                throw ApiException(response.code(), response.message())
+            }
+            val body = response.body() ?: throw ApiException(response.code(), response.message())
+            dao.insert(body.map { it.copy(show = true) }.toEntity())
+        } catch (e: IOException) {
+            throw NetWorkException
+        } catch (e: Exception) {
+            throw UnknownException
+        }
     }
 
-    override fun save(post: Post) {
-        val request: Request = Request.Builder()
-            .post(gson.toJson(post).toRequestBody(jsonType))
-            .url("${BASE_URL}/api/slow/posts")
-            .build()
-
-        client.newCall(request)
-            .execute()
-            .close()
+    override suspend fun likeById(id: Long) {
+        try {
+            val response = PostApi.retrofitService.likeById(id)
+            if (!response.isSuccessful) {
+                throw ApiException(response.code(), response.message())
+            }
+            val body = response.body() ?: throw ApiException(response.code(), response.message())
+            dao.insert(PostEntity.fromDto(body))
+        } catch (e: IOException) {
+            throw NetWorkException
+        } catch (e: Exception) {
+            throw UnknownException
+        }
     }
 
-    override fun removeById(id: Long) {
-        val request: Request = Request.Builder()
-            .delete()
-            .url("${BASE_URL}/api/slow/posts/$id")
-            .build()
-
-        client.newCall(request)
-            .execute()
-            .close()
+    override suspend fun removeById(id: Long) {
+        try {
+            val response = PostApi.retrofitService.removeById(id)
+            if (!response.isSuccessful) {
+                throw ApiException(response.code(), response.message())
+            }
+            dao.removeById(id)
+        } catch (e: IOException) {
+            throw NetWorkException
+        } catch (e: Exception) {
+            throw UnknownException
+        }
     }
+
+
+    override suspend fun disLikeById(id: Long) {
+        try {
+            val response = PostApi.retrofitService.disLikeById(id)
+            if (!response.isSuccessful) {
+                throw ApiException(response.code(), response.message())
+            }
+            val body = response.body() ?: throw ApiException(response.code(), response.message())
+            dao.insert(PostEntity.fromDto(body))
+        } catch (e: IOException) {
+            throw NetWorkException
+        } catch (e: Exception) {
+            throw UnknownException
+        }
+    }
+
+    override fun shareById(id: Long) {}
+
+    override suspend fun save(post: Post) {
+        try {
+            val response = PostApi.retrofitService.save(post)
+            if (!response.isSuccessful) {
+                throw ApiException(response.code(), response.message())
+            }
+            val body = response.body() ?: throw ApiException(response.code(), response.message())
+            dao.insert(PostEntity.fromDto(body))
+        } catch (e: IOException) {
+            throw NetWorkException
+        } catch (e: Exception) {
+            throw UnknownException
+        }
+    }
+
+    override fun video() {}
+
 }

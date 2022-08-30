@@ -37,7 +37,7 @@ class NewPostFragment : Fragment() {
             ?.let(binding.edit::setText)
 
         binding.ok.setOnClickListener {
-            viewModel.changeContent(binding.edit.text.toString())
+            viewModel.editContent(binding.edit.text.toString())
             viewModel.save()
             AndroidUtils.hideKeyboard(requireView())
         }
