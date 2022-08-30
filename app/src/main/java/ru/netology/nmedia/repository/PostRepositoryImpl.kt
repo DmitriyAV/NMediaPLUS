@@ -25,19 +25,26 @@ class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
         .flowOn(Dispatchers.Default)
 
     override fun getNewerCount(id: Long): Flow<Int> = flow {
-        try {
-            delay(10_000)
-            val response = PostApi.retrofitService.getNewer(id)
-            if (!response.isSuccessful) {
-                throw ApiException(response.code(), response.message())
+        while (true) {
+            try {
+                delay(10_000)
+                val response = PostApi.retrofitService.getNewer(id)
+                if (!response.isSuccessful) {
+                    throw ApiException(response.code(), response.message())
+                }
+                val body =
+                    response.body() ?: throw ApiException(response.code(), response.message())
+                dao.insert(body.map { it.copy(show = false) }.toEntity())
+                emit(body.size)
+            } catch (e: IOException) {
+                throw NetWorkException
             }
-            val body = response.body() ?: throw ApiException(response.code(), response.message())
-            dao.insert(body.toEntity())
-            emit(body.size)
-        } catch (e: IOException) {
-            throw NetWorkException
-        } catch (e: Exception) {
-            throw UnknownException
+            catch (e: CancellationException) {
+                throw e
+            }
+            catch (e: Exception) {
+                throw UnknownException
+            }
         }
     }
         .flowOn(Dispatchers.Default)
@@ -57,7 +64,7 @@ class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
                 throw ApiException(response.code(), response.message())
             }
             val body = response.body() ?: throw ApiException(response.code(), response.message())
-            dao.insert(body.toEntity())
+            dao.insert(body.map { it.copy(show = true) }.toEntity())
         } catch (e: IOException) {
             throw NetWorkException
         } catch (e: Exception) {
