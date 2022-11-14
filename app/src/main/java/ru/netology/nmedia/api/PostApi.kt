@@ -17,14 +17,15 @@ private val logging = HttpLoggingInterceptor().apply {
     }
 }
 
-private val okhttp = OkHttpClient.Builder()
+fun okhttp() = OkHttpClient.Builder()
     .addInterceptor(logging)
     .build()
 
-private val retrofit = Retrofit.Builder()
+
+fun retrofit(client: OkHttpClient): Retrofit = Retrofit.Builder()
     .addConverterFactory(GsonConverterFactory.create())
     .baseUrl(BASE_URL)
-    .client(okhttp)
+    .client(client)
     .build()
 
 interface PostsApiService {
@@ -49,10 +50,4 @@ interface PostsApiService {
     @POST("posts")
     suspend fun save(@Body post: Post): Response<Post>
 
-}
-
-object PostApi {
-    val retrofitService: PostsApiService by lazy {
-        retrofit.create(PostsApiService::class.java)
-    }
 }

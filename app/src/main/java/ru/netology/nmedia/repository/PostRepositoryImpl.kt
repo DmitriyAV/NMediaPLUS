@@ -4,9 +4,9 @@ package ru.netology.nmedia.repository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import ru.netology.nmedia.dto.Post
-import ru.netology.nmedia.api.PostApi
+import ru.netology.nmedia.api.PostsApiService
 import ru.netology.nmedia.dao.PostDao
+import ru.netology.nmedia.dto.Post
 import ru.netology.nmedia.entity.PostEntity
 import ru.netology.nmedia.entity.toDto
 import ru.netology.nmedia.entity.toEntity
@@ -14,11 +14,15 @@ import ru.netology.nmedia.exception.ApiException
 import ru.netology.nmedia.exception.NetWorkException
 import ru.netology.nmedia.exception.UnknownException
 import java.io.IOException
-import java.lang.Exception
 import java.util.concurrent.CancellationException
+import javax.inject.Inject
+import javax.inject.Singleton
 
-
-class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
+@Singleton
+class PostRepositoryImpl @Inject constructor(
+    private val dao: PostDao,
+    private val postApi: PostsApiService,
+) : PostRepository {
 
     override val data = dao.getAll()
         .map(List<PostEntity>::toDto)
@@ -28,7 +32,7 @@ class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
         while (true) {
             try {
                 delay(10_000)
-                val response = PostApi.retrofitService.getNewer(id)
+                val response = postApi.getNewer(id)
                 if (!response.isSuccessful) {
                     throw ApiException(response.code(), response.message())
                 }
@@ -59,7 +63,7 @@ class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
 
     override suspend fun getAll() {
         try {
-            val response = PostApi.retrofitService.getAll()
+            val response = postApi.getAll()
             if (!response.isSuccessful) {
                 throw ApiException(response.code(), response.message())
             }
@@ -74,7 +78,7 @@ class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
 
     override suspend fun likeById(id: Long) {
         try {
-            val response = PostApi.retrofitService.likeById(id)
+            val response = postApi.likeById(id)
             if (!response.isSuccessful) {
                 throw ApiException(response.code(), response.message())
             }
@@ -89,7 +93,7 @@ class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
 
     override suspend fun removeById(id: Long) {
         try {
-            val response = PostApi.retrofitService.removeById(id)
+            val response = postApi.removeById(id)
             if (!response.isSuccessful) {
                 throw ApiException(response.code(), response.message())
             }
@@ -104,7 +108,7 @@ class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
 
     override suspend fun disLikeById(id: Long) {
         try {
-            val response = PostApi.retrofitService.disLikeById(id)
+            val response = postApi.disLikeById(id)
             if (!response.isSuccessful) {
                 throw ApiException(response.code(), response.message())
             }
@@ -121,7 +125,7 @@ class PostRepositoryImpl(private val dao: PostDao) : PostRepository {
 
     override suspend fun save(post: Post) {
         try {
-            val response = PostApi.retrofitService.save(post)
+            val response = postApi.save(post)
             if (!response.isSuccessful) {
                 throw ApiException(response.code(), response.message())
             }

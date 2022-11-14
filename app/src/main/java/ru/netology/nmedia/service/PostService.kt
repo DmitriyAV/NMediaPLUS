@@ -53,8 +53,7 @@ object PostService {
     fun counterPrinter(counterForPrint: Double): String {
         val df = DecimalFormat("#.#")
         df.roundingMode = RoundingMode.FLOOR
-        return df.format(counterForPrint/1000).toDouble().toString()
+        return df.format(counterForPrint/1000).toString()
     }
-
 }
 

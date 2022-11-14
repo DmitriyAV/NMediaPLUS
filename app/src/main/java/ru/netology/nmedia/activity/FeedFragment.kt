@@ -9,17 +9,22 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import dagger.hilt.android.AndroidEntryPoint
 import ru.netology.nmedia.R
 import ru.netology.nmedia.adapter.OnInteractionListener
 import ru.netology.nmedia.adapter.PostsAdapter
+import ru.netology.nmedia.api.PostsApiService
 import ru.netology.nmedia.databinding.FragmentFeedBinding
 import ru.netology.nmedia.dto.Post
 import ru.netology.nmedia.model.FeedModel
 import ru.netology.nmedia.model.FeedModelState
 import ru.netology.nmedia.viewmodel.PostViewModel
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class FeedFragment : Fragment() {
 
+    @Inject lateinit var postsApiService: PostsApiService
     private val viewModel: PostViewModel by viewModels(ownerProducer = ::requireParentFragment)
 
     override fun onCreateView(

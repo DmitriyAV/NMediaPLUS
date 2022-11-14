@@ -2,6 +2,7 @@ package ru.netology.nmedia.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.*
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import ru.netology.nmedia.db.AppDb
@@ -11,6 +12,7 @@ import ru.netology.nmedia.model.FeedModelState
 import ru.netology.nmedia.repository.*
 import ru.netology.nmedia.util.SingleLiveEvent
 import java.lang.Exception
+import javax.inject.Inject
 
 
 private val empty = Post(
@@ -23,10 +25,10 @@ private val empty = Post(
     show = false
 )
 
-class PostViewModel(application: Application) : AndroidViewModel(application) {
+@OptIn(ExperimentalCoroutinesApi::class)
+@HiltViewModel
+class PostViewModel @Inject constructor(private val repository: PostRepository): ViewModel(){
 
-    private val repository: PostRepository =
-        PostRepositoryImpl(AppDb.getInstance(context = application).postDao())
 
     val data: LiveData<FeedModel> = repository.data
         .map(::FeedModel)
