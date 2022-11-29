@@ -1,11 +1,15 @@
 package ru.netology.nmedia.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
+import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import ru.netology.nmedia.BuildConfig
 import ru.netology.nmedia.R
 import ru.netology.nmedia.databinding.CardPostBinding
 import ru.netology.nmedia.dto.Post
@@ -19,14 +23,14 @@ interface OnInteractionListener {
 
 class PostsAdapter(
     private val onInteractionListener: OnInteractionListener,
-) : ListAdapter<Post, PostViewHolder>(PostDiffCallback()) {
+) : PagingDataAdapter<Post, PostViewHolder>(PostDiffCallback()) {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PostViewHolder {
         val binding = CardPostBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return PostViewHolder(binding, onInteractionListener)
     }
 
     override fun onBindViewHolder(holder: PostViewHolder, position: Int) {
-        val post = getItem(position)
+        val post = getItem(position) ?: return
         holder.bind(post)
     }
 }
@@ -37,11 +41,13 @@ class PostViewHolder(
 ) : RecyclerView.ViewHolder(binding.root) {
 
     fun bind(post: Post) {
+
+        val url = BuildConfig.BASE_URL
+
         binding.apply {
             author.text = post.author
             published.text = post.published
             content.text = post.content
-            // в адаптере
             like.isChecked = post.likedByMe
             like.text = "${post.likes}"
 
@@ -72,6 +78,27 @@ class PostViewHolder(
             share.setOnClickListener {
                 onInteractionListener.onShare(post)
             }
+
+            if(post.attachment == null){
+                attachments.visibility = View.GONE
+            } else {
+                attachments.visibility = View.VISIBLE
+
+                Glide.with(attachments)
+                    .load("$url/images/${post.attachment?.url}")
+                    .error(R.drawable.ic_error)
+                    .placeholder(R.drawable.ic_loading_avatar)
+                    .timeout(10_000)
+                    .into(attachments)
+            }
+
+            Glide.with(avatar)
+                .load("$url/avatars/${post.authorAvatar}")
+                .error(R.drawable.ic_error)
+                .placeholder(R.drawable.ic_loading_avatar)
+                .circleCrop()
+                .timeout(10_000)
+                .into(avatar)
         }
     }
 }

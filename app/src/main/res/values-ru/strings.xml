@@ -21,4 +21,11 @@
     <string name="notification_user_liked">%1$s поставил лайк посту %2$s</string>
     <string name="channel_remote_name">Уведомления с сервера</string>
     <string name="channel_remote_description">Уведомления с удалённого сервера</string>
+    <string name="no_network">Нет сети</string>
+    <string name="unknown_exception">Что-то пошло не так :(</string>
+    <string name="extended_fab_content_desc">New posts</string>
+    <string name="extended_fab_label">New posts</string>
+    <string name="sign_in">Войти</string>
+    <string name="sign_up">Зарегистрироваться</string>
+    <string name="cancel">Отменить</string>
 </resources>
