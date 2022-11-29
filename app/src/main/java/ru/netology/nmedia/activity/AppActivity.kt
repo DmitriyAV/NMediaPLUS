@@ -2,7 +2,9 @@ package ru.netology.nmedia.activity
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.MenuItem
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import com.google.android.gms.common.ConnectionResult
@@ -11,6 +13,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.AndroidEntryPoint
 import ru.netology.nmedia.R
 import ru.netology.nmedia.activity.NewPostFragment.Companion.textArg
+import ru.netology.nmedia.auth.AppAuth
 import ru.netology.nmedia.repository.PostRepository
 import javax.inject.Inject
 
@@ -18,7 +21,7 @@ import javax.inject.Inject
 class AppActivity : AppCompatActivity(R.layout.activity_app) {
 
     @Inject
-    lateinit var repository: PostRepository
+    lateinit var auth: AppAuth
 
     @Inject
     lateinit var googleApiAvailability: GoogleApiAvailability
@@ -51,6 +54,35 @@ class AppActivity : AppCompatActivity(R.layout.activity_app) {
         }
 
         checkGoogleApiAvailability()
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.signin -> {
+                findNavController(R.id.nav_host_fragment).navigate(R.id.signInFragment)
+
+                true
+            }
+            R.id.signup -> {
+                findNavController(R.id.nav_host_fragment).navigate(R.id.signUpFragment)
+                true
+            }
+            R.id.signout -> {
+                AlertDialog.Builder(this).setMessage("Уверены?")
+                    .setPositiveButton("Выйти"
+                    ) { dialogInterface, i ->
+                        auth.removeAuth()
+                        findNavController(R.id.nav_host_fragment).navigateUp()
+                    }
+                    .setNegativeButton("Остаться"
+                    ) { dialogInterface, i ->
+                        return@setNegativeButton
+                    }
+                    .show()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     private fun checkGoogleApiAvailability() {

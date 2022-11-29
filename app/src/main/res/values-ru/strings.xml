@@ -25,4 +25,7 @@
     <string name="unknown_exception">Что-то пошло не так :(</string>
     <string name="extended_fab_content_desc">New posts</string>
     <string name="extended_fab_label">New posts</string>
+    <string name="sign_in">Войти</string>
+    <string name="sign_up">Зарегистрироваться</string>
+    <string name="cancel">Отменить</string>
 </resources>

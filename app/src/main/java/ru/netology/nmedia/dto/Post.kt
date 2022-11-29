@@ -10,13 +10,13 @@ data class Post(
     val show: Boolean,
     val authorAvatar: String = "",
     var attachment: Attachment? = null,
-
+    val ownedByMe: Boolean = false,
+    val authorId: Long,
 )
 
 data class Attachment(
     val url: String,
-    val description: String?,
-    val type: AttachmentType,
+    val type: AttachmentType
 )
 
 enum class AttachmentType {

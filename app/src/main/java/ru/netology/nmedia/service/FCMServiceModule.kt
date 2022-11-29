@@ -9,8 +9,6 @@ import javax.inject.Singleton
 @Module
 class FCMServiceModule {
 
-
-    @Singleton
     @Provides
     fun provideFCMService(): FirebaseMessaging = FirebaseMessaging.getInstance()
 

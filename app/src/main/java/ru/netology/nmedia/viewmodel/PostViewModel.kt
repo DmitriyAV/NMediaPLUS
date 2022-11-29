@@ -1,14 +1,20 @@
 package ru.netology.nmedia.viewmodel
 
+import MediaUpload
 import android.app.Application
 import androidx.lifecycle.*
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.map
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import ru.netology.nmedia.auth.AppAuth
 import ru.netology.nmedia.db.AppDb
 import ru.netology.nmedia.dto.Post
 import ru.netology.nmedia.model.FeedModel
 import ru.netology.nmedia.model.FeedModelState
+import ru.netology.nmedia.model.PhotoModel
 import ru.netology.nmedia.repository.*
 import ru.netology.nmedia.util.SingleLiveEvent
 import java.lang.Exception
@@ -22,25 +28,44 @@ private val empty = Post(
     likedByMe = false,
     likes = 0,
     published = "",
-    show = false
+    show = false,
+    authorId = 0,
 )
+
+private val noPhoto = PhotoModel()
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class PostViewModel @Inject constructor(private val repository: PostRepository): ViewModel(){
+class PostViewModel @Inject constructor(
+    private val repository: PostRepository,
+    auth: AppAuth
+): ViewModel(){
 
+    private val cached = repository
+        .data
+        .cachedIn(viewModelScope)
 
-    val data: LiveData<FeedModel> = repository.data
-        .map(::FeedModel)
-        .asLiveData(Dispatchers.Default)
+    val data: Flow<PagingData<Post>> = auth
+        .authStateFlow
+        .flatMapLatest { (myId, _) ->
+            cached.map { pagingData ->
+                pagingData.map { post ->
+                    post.copy(ownedByMe = post.authorId == myId)
+                }
+            }
+        }.flowOn(Dispatchers.Default)
 
-    val newerPost: LiveData<Int> = data
+    private val _photo = MutableLiveData(noPhoto)
+    val photo: LiveData<PhotoModel>
+        get() = _photo
+
+   /* val newerPost: LiveData<Int> = data
         .switchMap {
             repository.getNewerCount(it.posts.firstOrNull()?.id ?: 0L )
                 .catch { e -> e.printStackTrace() }
                 .asLiveData(Dispatchers.Default)
         }
-        .distinctUntilChanged()
+        .distinctUntilChanged()*/
 
 
     private val _dataState = MutableLiveData<FeedModelState>()
@@ -78,7 +103,12 @@ class PostViewModel @Inject constructor(private val repository: PostRepository):
             _postCreated.value = Unit
             viewModelScope.launch {
                 try {
-                    repository.save(it)
+                    when (_photo.value) {
+                        noPhoto -> repository.save(it)
+                        else -> _photo.value?.file?.let { file ->
+                            repository. saveWithAttachment(it, MediaUpload(file))
+                        }
+                    }
                     _dataState.value = FeedModelState()
                 } catch (e: Exception) {
                     _dataState.value = FeedModelState(error = true)
@@ -86,6 +116,7 @@ class PostViewModel @Inject constructor(private val repository: PostRepository):
             }
         }
         edited.value = empty
+        _photo.value = noPhoto
     }
 
     fun retrySave() {
