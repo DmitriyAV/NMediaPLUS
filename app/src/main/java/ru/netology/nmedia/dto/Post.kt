@@ -7,5 +7,18 @@ data class Post(
     val published: String,
     val likedByMe: Boolean,
     val likes: Int = 0,
+    val show: Boolean,
+    val authorAvatar: String = "",
+    var attachment: Attachment? = null,
+    val ownedByMe: Boolean = false,
+    val authorId: Long,
 )
 
+data class Attachment(
+    val url: String,
+    val type: AttachmentType
+)
+
+enum class AttachmentType {
+    IMAGE
+}
