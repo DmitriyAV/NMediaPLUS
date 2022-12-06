@@ -3,9 +3,7 @@ package ru.netology.nmedia.repository
 
 import Media
 import MediaUpload
-import androidx.paging.Pager
-import androidx.paging.PagingConfig
-import androidx.paging.PagingData
+import androidx.paging.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -14,6 +12,8 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import ru.netology.nmedia.api.PostsApiService
 import ru.netology.nmedia.auth.AppAuth
 import ru.netology.nmedia.dao.PostDao
+import ru.netology.nmedia.dao.PostRemoteKeyDao
+import ru.netology.nmedia.db.AppDb
 import ru.netology.nmedia.dto.Attachment
 import ru.netology.nmedia.dto.AttachmentType
 import ru.netology.nmedia.dto.Post
@@ -32,16 +32,23 @@ import javax.inject.Singleton
 @Singleton
 class PostRepositoryImpl @Inject constructor(
     private val dao: PostDao,
+    appDb: AppDb,
+    postRemoteKeyDao: PostRemoteKeyDao,
+    private val apiService: PostsApiService,
     private val postApi: PostsApiService,
 ) : PostRepository {
 
     @Inject
     lateinit var auth: AppAuth
 
+    @OptIn(ExperimentalPagingApi::class)
     override val data: Flow<PagingData<Post>> = Pager(
-        config = PagingConfig(pageSize = 5, enablePlaceholders = false),
-        pagingSourceFactory = { PostPagingSource(postApi) },
-    ).flow
+        config = PagingConfig(pageSize = 25),
+        remoteMediator = PostRemoteMediator(apiService, appDb, dao, postRemoteKeyDao),
+        pagingSourceFactory = dao::pagingSource,
+    ).flow.map { pagingData ->
+        pagingData.map(PostEntity::toDto)
+    }
 
     override fun getNewerCount(id: Long): Flow<Int> = flow {
         while (true) {
@@ -69,7 +76,19 @@ class PostRepositoryImpl @Inject constructor(
         .flowOn(Dispatchers.Default)
 
     override suspend fun getUnreadPosts() {
-        dao.getUnreadPosts()
+        try {
+            val response = apiService.getAll()
+            if (!response.isSuccessful) {
+                throw ApiException(response.code(), response.message())
+            }
+            val body = response.body() ?: throw ApiException(response.code(), response.message())
+            dao.insert(body.toEntity())
+//            dao.getUnreadPosts()
+        } catch (e: IOException) {
+            throw NetWorkException
+        } catch (e: java.lang.Exception) {
+            throw UnknownException
+        }
     }
 
     override suspend fun makePostReaded() {
