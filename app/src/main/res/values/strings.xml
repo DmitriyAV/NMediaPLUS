@@ -6,6 +6,7 @@
     <string name="description_post_like">Like</string>
     <string name="description_post_share">Share</string>
     <string name="description_post_save">Save</string>
+    <string name="description_post_edit" translatable="false">Post edit</string>
     <string name="menu_remove">Remove</string>
     <string name="post_text">Post Text</string>
     <string name="menu_edit">Edit</string>
@@ -20,4 +21,14 @@
     <string name="notification_user_liked">User %1$s liked %2$s\'s post</string>
     <string name="channel_remote_name">Server notifications</string>
     <string name="channel_remote_description">Notifications from remote server</string>
+    <string name="no_network">No web</string>
+    <string name="sign_in">Enter</string>
+    <string name="unknown_exception">Something went wrong:(</string>
+    <string name="extended_fab_content_desc">New posts</string>
+    <string name="extended_fab_label">New posts</string>
+    <string name="sign_up">Registration</string>
+    <string name="sign_out">Quite</string>
+    <string name="cancel">Cancel</string>
+
+
 </resources>
