@@ -1,6 +1,8 @@
 package ru.netology.nmedia.activity
 
+
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -14,13 +16,13 @@ import androidx.paging.LoadState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import ru.netology.nmedia.R
+import ru.netology.nmedia.activity.CardPostFragment.Companion.showPost
+import ru.netology.nmedia.adapter.FeedAdapter
 import ru.netology.nmedia.adapter.OnInteractionListener
-import ru.netology.nmedia.adapter.PostsAdapter
+import ru.netology.nmedia.adapter.PagingLoadStateAdapter
 import ru.netology.nmedia.api.PostsApiService
 import ru.netology.nmedia.databinding.FragmentFeedBinding
 import ru.netology.nmedia.dto.Post
-import ru.netology.nmedia.model.FeedModel
-import ru.netology.nmedia.model.FeedModelState
 import ru.netology.nmedia.viewmodel.AuthViewModel
 import ru.netology.nmedia.viewmodel.PostViewModel
 import javax.inject.Inject
@@ -43,7 +45,7 @@ class FeedFragment : Fragment() {
     ): View {
         val binding = FragmentFeedBinding.inflate(inflater, container, false)
 
-        val adapter = PostsAdapter(object : OnInteractionListener {
+        val adapter = FeedAdapter(object : OnInteractionListener {
             override fun onEdit(post: Post) {
                 viewModel.edit(post)
             }
@@ -70,10 +72,38 @@ class FeedFragment : Fragment() {
                     Intent.createChooser(intent, getString(R.string.chooser_share_post))
                 startActivity(shareIntent)
             }
+
+            override fun onPlayVideo(post: Post) {
+                val videoIntent = Intent(Intent.ACTION_VIEW, Uri.parse(post.video))
+                startActivity(videoIntent)
+            }
+
+            override fun onSinglePost(post: Post) {
+                findNavController().navigate(
+                    R.id.action_feedFragment_to_cardPostFragment2,
+                    Bundle().apply
+                    {
+                        showPost = post
+                    })
+            }
+
+            override fun onFullScreenImage(post: Post) {
+                TODO("Not yet implemented")
+            }
         })
 
-        binding.list.adapter = adapter
-
+        binding.list.adapter = adapter.withLoadStateHeaderAndFooter(
+            header = PagingLoadStateAdapter(object : PagingLoadStateAdapter.OnInteractionListener {
+                override fun onRetry() {
+                    adapter.retry()
+                }
+            }),
+            footer = PagingLoadStateAdapter(object : PagingLoadStateAdapter.OnInteractionListener {
+                override fun onRetry() {
+                    adapter.retry()
+                }
+            }),
+        )
         viewModel.dataState.observe(viewLifecycleOwner) { state ->
             with(binding) {
                 progress.isVisible = state.loading
@@ -116,7 +146,6 @@ class FeedFragment : Fragment() {
         binding.newPosts.setOnClickListener {
             binding.newPosts.visibility = View.GONE
             viewModel.getUnreadPosts()
-            viewModel.makePostReaded()
         }
 
         binding.retryButton.setOnClickListener {
